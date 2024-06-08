@@ -320,3 +320,550 @@ Insert documents by using insertOne() and insertMany().
 Query documents by using findOne() and find().
 Delete documents by using deleteOne() and deleteMany().
 Create a multi-document transaction.
+
+Building a MongoDB Aggregation Pipeline in Node.js Applications
+
+Using MongoDB Aggregation Stages with Node.js: $match and $group
+
+Review the following code, which demonstrates how to build the $match and $group stages of an aggregation pipeline in MongoDB with Node.js.
+
+Using $match
+Aggregation gives you a way to transform data from your collection by passing documents from one stage to another. These stages can consist of operators that transform or organize your data in a specific way. In this lesson, we used $match and $group.
+
+The $match stage filters documents by using a simple equality match, like $match: { author: "Dave"}, or aggregation expressions using comparison operators, like $match: { likes: { $gt: 100 } }. This operator accepts a query document and passes the resulting documents to the next stage. $match should be placed early in your pipeline to reduce the number of documents to process.
+
+Using $group
+The $group stage separates documents according to a group key and returns one document for every unique group key. The group key is usually a field in the document, but it can also be an expression that resolves to a field. The $group stage can be used with aggregation expressions to perform calculations on the grouped documents. An example of this is adding up the total number of movie tickets sold by using the $sum operator:
+
+$group: { _id: "$movie", totalTickets: { $sum: "$tickets" } }
+
+The "$movie" is the group key, and the totalTickets field is the result of the $sum operator.
+
+In the following code, we assign our collection name to a variable for convenience. First, we declare some variables to hold the database connection and the collection we'll use:
+
+const client = new MongoClient(uri)
+const dbname = "bank";
+const collection_name = "accounts";
+const accountsCollection = client.db(dbname).collection(collection_name);
+Next, we build an aggregation pipeline that uses $match and $group and that will find accounts with a balance of less than $1,000. Then we group the results by the account_type, and calculate the total_balance and avg_balance for each type.
+
+const pipeline = [
+  // Stage 1: match the accounts with a balance less than $1,000
+  { $match: { balance: { $lt: 1000 } } },
+  // Stage 2: Calculate average balance and total balance
+  {
+    $group: {
+      _id: "$account_type",
+      total_balance: { $sum: "$balance" },
+      avg_balance: { $avg: "$balance" },
+    },
+  },
+]
+To run an aggregation pipeline, we append the aggregate method to the collection. The aggregate method takes an array of stages as an argument, which is stored in a variable. The aggregate method returns a cursor that we can iterate over to get the results.
+
+const main = async () => {
+  try {
+    await client.connect()
+    console.log(`Connected to the database 🌍. \nFull connection string: ${safeURI}`)
+    let result = await accountsCollection.aggregate(pipeline)
+    for await (const doc of result) {
+      console.log(doc)
+    }
+  } catch (err) {
+    console.error(`Error connecting to the database: ${err}`)
+  } finally {
+    await client.close()
+  }
+}
+
+main()
+Using MongoDB Aggregation Stages with Node.js: $sort and $project
+
+Review the following code, which demonstrates how to build the $sort and $project stages of an aggregation pipeline in MongoDB with Node.js.
+
+$sort
+Aggregation is a powerful tool that gives us the ability to compute and transform our data. In this skill, we focused on the $sort and $project stages.
+
+The $sort stage takes all the input documents and sorts them in a specific order. The documents can be sorted in numerical, alphabetical, ascending, or descending order.
+
+The $sort stage accepts a sort key that specifies the field to sort on. The sort key can be 1 for ascending order or -1 for descending order. For example:
+
+{ $sort: { balance: 1 } } sorts the documents in ascending order by the balance field.
+
+{ $sort: { balance: -1 } } sorts the documents in descending order by the balance field.
+
+$project
+The $project stage takes all the input documents and passes along only a subset of the fields in those documents by specifying the fields to include or exclude.
+
+For example, if we want our resulting documents to include only the account_id, we write { $project: { _id: 0, account_id: 1 } }. The _id field is excluded by setting it to 0, and the account_id field is included by setting it to 1.
+
+The $project stage can also create new computed fields based on data from the original documents. An example of this is creating a projected field that contains someone's full name, where only the first and last names are stored in the original document.
+
+In the following example, we build an aggregation pipeline that uses $match, $sort, and $project, and that will find checking accounts with a balance of greater than or equal to $1,500. Then, we sort the results by the balance in descending order and return only the account_id, account_type, balance, and a new computed field named gbp_balance, which stands for Great British Pounds (GBP) balance.
+
+const pipeline = [
+  // Stage 1: $match - filter the documents (checking, balance >= 1500)
+  { $match: { account_type: "checking", balance: { $gte: 1500 } } },
+
+  // Stage 2: $sort - sorts the documents in descending order (balance)
+  { $sort: { balance: -1 } },
+
+  // Stage 3: $project - project only the requested fields and one computed field (account_type, account_id, balance, gbp_balance)
+  {
+    $project: {
+      _id: 0,
+      account_id: 1,
+      account_type: 1,
+      balance: 1,
+      // GBP stands for Great British Pound
+      gbp_balance: { $divide: ["$balance", 1.3] },
+    },
+  },
+]
+To run an aggregation pipeline, we append the aggregate method to the collection. The aggregate method takes an array of stages as an argument, which is stored here as a variable. The aggregate method returns a cursor that we can iterate over to get the results.
+
+const main = async () => {
+  try {
+    await client.connect()
+    console.log(`Connected to the database 🌍\n ${uri}`)
+    let accounts = client.db("bank").collection("accounts")
+    let result = await accounts.aggregate(pipeline)
+    for await (const doc of result) {
+      console.log(doc)
+    }
+  } catch (err) {
+    console.error(`Error connecting to the database: ${err}`)
+  } finally {
+    await client.close()
+  }
+}
+
+main()
+Conclusion
+MongoDB Aggregation with Node.js
+In this skill, you learned how to:
+
+Define an aggregation pipeline and its stages and operators.
+Build the $match and $group stages of a pipeline in Node.js.
+Build the $sort and $project stages of a pipeline in Node.js.
+
+What's mongoose?
+Mongoose is an Object Data Modeling (ODM) library for MongoDB and Node.JS. It is responsible for:
+
+Managing data relationships.
+Providing schema validation.
+Implementing the translation between code objects and the representation of those objects in MongoDB.
+
+
+Mongodb vs SQL
+You know by now that MongoDB is a schema-less NoSQL document database. It means you can store JSON documents on it. The structure of these documents can vary as it is not enforced like SQL databases. This is one of the advantages of using NoSQL as it speeds up application development and reduces the complexity of deployments.
+
+The example below is a reminder of how data is stored in Mongo vs. SQL Database:
+
+
+
+Terminologies
+Just as a reminder, here are some terminologies used with the NoSQL database:
+
+Collections: Collections in Mongo are the equivalent of tables in relational databases. They can hold multiple JSON documents.
+Documents: Documents are the equivalent of records or data rows in SQL. While an SQL row can reference data in other tables, Mongo documents usually combine them in one document.
+Fields: Fields or attributes that are similar to columns in an SQL table.
+Schema: While Mongo is schema-less, SQL defines a schema via the table definition. A Mongoose ‘schema’ is a document data structure (or a shape of the document) that is enforced via the application layer.
+Models: Models are higher-order constructors that take a schema and create an instance of a document equivalent to records in a relational database.
+References: References are referred from one document to another using the value of the referenced (parent) document.
+
+Getting Started
+.Mongoose Installation
+Let’s go to the project folder and initialize our project:
+
+npm init -y
+Let’s install Mongoose and a validation library with the following command:
+
+npm install mongoose validator
+The above install command will install the latest version of the libraries. The Mongoose syntax in this course is specific to Mongoose v5 and beyond.
+
+Database Connection
+Create a file ./src/database.js under the project's root.
+Next, we will add a simple class with a method that connects to the database.
+Your connection string will vary based on your installation.
+
+let mongoose = require('mongoose');
+const server = '127.0.0.1:27017'; // REPLACE WITH YOUR DB SERVER
+const database = 'myDB';      // REPLACE WITH YOUR DB NAME
+class Database {
+  constructor() {
+    this._connect()
+  }
+_connect() {
+     mongoose.connect(`mongodb://${server}/${database}`)
+       .then(() => {
+         console.log('Database connection successful')
+       })
+       .catch(err => {
+         console.error('Database connection error')
+       })
+  }
+}
+module.exports = new Database()
+The require(‘mongoose’) call above returns a Singleton object. It means that when you call require(‘mongoose’) for the first time, it creates an instance of the Mongoose class and returns it. On subsequent calls, it will return the same instance that was created and returned to you the first time because of how module import/export works in ES6.
+
+Side Note
+About Module import/require work-flow:
+
+
+In the previous code, we have also turned our database class into a singleton by returning an instance of the class in the module.exports statement because we only need a single connection to the database.
+ES6 makes it very easy for us to create a singleton (single instance) pattern because of how the module loader works by caching the response of a previously imported file.
+
+Mongoose Schema vs. Model
+A Mongoose model is a wrapper on the Mongoose schema. A Mongoose schema defines the structure of the document, default values, validators, etc... whereas a Mongoose model provides an interface to the database for creating, querying, updating, deleting records, etc.
+
+Creating a Mongoose model comprises primarily of three parts:
+
+1. Referencing Mongoose
+let mongoose = require('mongoose')
+This reference will be the same as the one that was returned when we connected to the database, which means the schema and model definitions will not need to explicitly connect to the database.
+
+2. Defining the Schema
+A schema defines document properties through an object where the key name corresponds to the property name in the collection.
+
+let emailSchema = new mongoose.Schema({
+  email: String
+})
+Here we define a property called email with a schema type String which maps to an internal validator that will be triggered when the model is saved to the database. It will fail if the data type of the value is not a string type.
+The following Schema Types are permitted:
+
+Array
+Boolean
+Buffer
+Date
+Mixed (A generic / flexible data type)
+Number
+ObjectId
+String
+Mixed and ObjectId are defined under require(‘mongoose’).Schema.Types.
+
+3. Exporting a Model
+We need to call the model constructor on the Mongoose instance and pass it the name of the collection and a reference to the schema definition.
+
+module.exports = mongoose.model('Email', emailSchema)
+Let’s combine the code above into ./src/models/email.js to define the contents of a basic email model:
+
+let mongoose = require('mongoose')
+let emailSchema = new mongoose.Schema({
+  email: String
+})
+module.exports = mongoose.model('Email', emailSchema)
+A schema definition should be simple, but its complexity is usually based on application requirements. Schemas can be reused and they can contain several child-schemas too. In the example above, the value of the email property is a simple value type. However, it can also be an object type with additional properties on it.
+
+We can also create an instance of the model we've defined above and populate it using the following syntax:
+
+let EmailModel = require('./email')
+let msg = new EmailModel({
+  email: 'ada.lovelace@gmail.com'
+})
+Let’s enhance the email schema to make the email property a unique and required field. We can then convert the value to lowercase before saving it. We can also add a validation function that will ensure that the value is a valid email address. We will reference and use the validator library installed earlier.
+
+let mongoose = require('mongoose')
+let validator = require('validator')
+let emailSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    validate: (value) => {
+      return validator.isEmail(value)
+    }
+  }
+})
+module.exports = mongoose.model('Email', emailSchema)
+
+Basic Operations
+Mongoose has a flexible API and provides many ways to accomplish a task. We will not focus on the variations because that is out of the scope of this course. However, try to remember that most of the operations can be done in more than one way either syntactically or via the application's architecture.
+
+Create Record
+Let’s create an instance of the email model and save it to the database:
+
+let EmailModel = require('./email')
+let msg = new EmailModel({
+  email: 'ADA.LOVELACE@GMAIL.COM'
+})
+msg.save()
+   .then(doc => {
+     console.log(doc)
+   })
+   .catch(err => {
+     console.error(err)
+   })
+The result is a document that is returned upon a successful save:
+
+{ 
+  _id: 5a78fe3e2f44ba8f85a2409a,
+  email: 'ada.lovelace@gmail.com',
+  __v: 0 
+}
+​
+The following fields are returned (internal fields are prefixed with an underscore):
+
+The _id field is auto-generated by Mongo and is a primary key of the collection. Its value is a unique identifier for the document.
+The value of the email field is returned. Notice that it is lower-case because we specified the lowercase:true attribute in the schema.
+__v is the versionKey property set on each document when first created by Mongoose. Its value contains the internal revision of the document.
+​
+If you try to repeat the save operation above, you will get an error because we have specified that the email field should be unique.
+311790:0
+Fetch Record
+Let’s try to retrieve the record we saved to the database earlier. The model class exposes several static and instance methods to perform operations on the database. We will now try to find the record that we have created previously using the find method and pass the email as the search term.
+
+EmailModel
+  .find({
+    email: 'ada.lovelace@gmail.com'   // search query
+  })
+  .then(doc => {
+    console.log(doc)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+The document returned will be similar to what was displayed when we created the record:
+
+{ 
+  _id: 5a78fe3e2f44ba8f85a2409a,
+  email: 'ada.lovelace@gmail.com',
+  __v: 0 
+}
+Update Record
+Let’s modify the record above by changing the email address and adding another field to it, all in a single operation. For performance reasons, Mongoose won’t return the updated document so we need to pass an additional parameter to ask for it:
+
+EmailModel
+  .findOneAndUpdate(
+    {
+      email: 'ada.lovelace@gmail.com'  // search query
+    }, 
+    {
+      email: 'theoutlander@live.com'   // field:values to update
+    },
+    {
+      new: true,                       // return updated doc
+      runValidators: true              // validate before update
+    })
+  .then(doc => {
+    console.log(doc)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+The document returned will contain the updated email:
+
+{ 
+  _id: 5a78fe3e2f44ba8f85a2409a,
+  email: 'theoutlander@live.com',
+  __v: 0 
+}
+Delete Record
+We will use the findOneAndRemove call to delete a record. It returns the original document that was removed:
+
+EmailModel
+  .findOneAndRemove({
+    email: 'theoutlander@live.com'
+  })
+  .then(response => {
+    console.log(response)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+
+  Helpers
+So far, we have looked at some of the basic functionalities known as CRUD (Create, Read, Update, Delete) operations, but Mongoose also provides the ability to configure several types of helper methods and properties. These can be used to further simplify working with data.
+
+Let’s create a user schema in ./src/models/user.js with the fields firstName and lastName:
+
+let mongoose = require('mongoose')
+let userSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String
+})
+module.exports = mongoose.model('User', userSchema)
+Virtual Property
+A virtual property is not restricted the database. We can add it to our schema as a helper to get and set values.
+Let’s create a virtual property called fullName which can be used to set values on firstName and lastName and retrieve them as a combined value when read:
+
+userSchema.virtual('fullName').get(function() {
+  return this.firstName + ' ' + this.lastName
+})
+userSchema.virtual('fullName').set(function(name) {
+  let str = name.split(' ')
+  
+  this.firstName = str[0]
+  this.lastName = str[1]
+})
+Callbacks for get and set must use the function keyword as we need to access the model via the this keyword. Using fat arrow functions will change what this refers to.
+
+Now, we can set firstName and lastName by assigning a value to fullName:
+
+let model = new UserModel()
+model.fullName = 'Thomas Anderson'
+console.log(model.toJSON())  // Output model fields as JSON
+console.log()
+console.log(model.fullName)  // Output the full name
+The code above will output the following:
+
+{ _id: 5a7a4248550ebb9fafd898cf,
+  firstName: 'Thomas',
+  lastName: 'Anderson' }
+Thomas Anderson
+Instance Methods
+We can create custom helper methods on the schema and access them via the model instance. These methods will have access to the model object and they can be used quite creatively. For instance, we could create a method to find all the people who have the same first name as the current instance.
+In this example, let’s create a function to return the initials for the current user. Let’s add a custom helper method called getInitials to the schema:
+
+userSchema.methods.getInitials = function() {
+  return this.firstName[0] + this.lastName[0]
+}
+This method will be accessible via a model instance:
+
+let model = new UserModel({
+  firstName: 'Thomas',
+  lastName: 'Anderson'
+})
+let initials = model.getInitials()
+console.log(initials) // This will output: TA
+Static Methods
+Similar to instance methods, we can create static methods on the schema. Let’s create a method to retrieve all users in the database:
+
+userSchema.statics.getUsers = function() {
+  return new Promise((resolve, reject) => {
+    this.find((err, docs) => {
+      if(err) {
+        console.error(err)
+        return reject(err)
+      }
+      resolve(docs)
+    })
+  })
+}
+Calling getUsers on the Model class will return all the users in the database:
+
+UserModel.getUsers()
+  .then(docs => {
+    console.log(docs)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+Adding instance and static methods is a nice approach to implement an interface to database interactions on collections and records.
+
+Middleware
+Middleware is a set of functions that run at specific stages of a pipeline. Mongoose supports middleware for the following operations:
+
+Aggregate
+Document
+Model
+Query
+For instance, models have pre and post functions that take two parameters:
+
+Type of event (‘init’, ‘validate’, ‘save’, ‘remove’)
+A callback that is executed with this referencing the model instance
+Example of Middleware (a.k.a. pre and post hooks):
+
+Middleware
+Let’s demonstrate this, as an example, by adding two fields called createdAt and updatedAt to our schema:
+
+let mongoose = require('mongoose')
+let userSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
+  createdAt: Date,
+  updatedAt: Date
+})
+module.exports = mongoose.model('User', userSchema)
+When model.save() is called, there is a pre(‘save’, …) and post(‘save’, …) event that is triggered. For the second parameter, you can pass a function that is called when the event is triggered. These functions take a parameter to the next function in the middleware chain.
+
+Let’s add a pre-save hook and set values for createdAt and updatedAt:
+
+userSchema.pre('save', function (next) {
+  let now = Date.now()
+   
+  this.updatedAt = now
+  // Set a value for createdAt only if it is null
+  if (!this.createdAt) {
+    this.createdAt = now
+  }
+  // Call the next function in the pre-save chain
+  next()    
+})
+Let’s create and save our model:
+
+let UserModel = require('./user')
+let model = new UserModel({
+  fullName: 'Thomas Anderson'
+}
+msg.save()
+   .then(doc => {
+     console.log(doc)
+   })
+   .catch(err => {
+     console.error(err)
+   })
+You should see values for createdAt and updatedAt when the created record is printed:
+
+{ _id: 5a7bbbeebc3b49cb919da675,
+  firstName: 'Thomas',
+  lastName: 'Anderson',
+  updatedAt: 2018-02-08T02:54:38.888Z,
+  createdAt: 2018-02-08T02:54:38.888Z,
+  __v: 0 }
+Plugins
+Suppose that we want to track when a record was created and last updated on every collection in our database. Instead of repeating the above process, we can create a plugin and apply it to every schema.
+
+Let’s create a file ./src/model/plugins/timestamp.js and replicate the above functionality as a reusable module:
+
+module.exports = function timestamp(schema) {
+  // Add the two fields to the schema
+  schema.add({ 
+    createdAt: Date,
+    updatedAt: Date
+  })
+
+  // Create a pre-save hook
+  schema.pre('save', function (next) {
+    let now = Date.now()
+   
+    this.updatedAt = now
+    // Set a value for createdAt only if it is null
+    if (!this.createdAt) {
+      this.createdAt = now
+    }
+   // Call the next function in the pre-save chain
+   next()    
+  })
+}
+To use this plugin, we simply pass it to the schemas that should be given this functionality:
+
+let timestampPlugin = require('./plugins/timestamp')
+
+emailSchema.plugin(timestampPlugin)
+userSchema.plugin(timestampPlugin)
+
+Query Building
+Mongoose has a very rich API that handles many complex operations supported by MongoDB. Let's take for example a query where we can incrementally build query components.
+
+In this example, we are going to:
+
+Find all users.
+Skip the first 100 records.
+Limit the results to 10 records.
+Sort the results by the firstName field.
+Select the firstName.
+Execute that query.
+UserModel.find()                   // find all users
+         .skip(100)                // skip the first 100 items
+         .limit(10)                // limit to 10 items
+         .sort({firstName: 1}      // sort ascending by firstName
+         .select({firstName: true} // select firstName only
+         .exec()                   // execute the query
+         .then(docs => {
+            console.log(docs)
+          })
+         .catch(err => {
+            console.error(err)
+          })
